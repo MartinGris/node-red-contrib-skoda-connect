@@ -1,0 +1,51 @@
+<script type="text/javascript">
+    RED.nodes.registerType('skoda-connect',{
+        category: 'car',
+        color: '#4aa82e',
+        defaults: {
+            name: {value:""}
+        },
+        inputs:1,
+        outputs:1,
+        icon: "arrow-in.svg",
+        label: function() {
+            return this.name||"skoda-connect";
+        },
+        credentials: {
+            email: { type: "text" },
+            password: { type: "password" }
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="skoda-connect">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-email"><i class="icon-tag"></i> Email</label>
+        <input type="text" id="node-input-email">
+    </div>
+    <div class="form-row">
+        <label for="node-input-password"><i class="icon-tag"></i> Password</label>
+        <input type="password" id="node-input-password">
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="skoda-connect">
+    <p>A node to log in to Skoda connect service</p>
+
+    <h3>Inputs</h3>
+    <p>Input only used for triggering</p>
+
+    <h3>Output</h3>
+    <p>json object with various information of all cars configured in Skoda connect</p>
+
+
+    <h3>References</h3>
+        <ul>
+            <li><a href="https://www.skoda-connect.com/">Skoda connect</a> </li>
+            <li><a href="https://github.com/MartinGris/node-red-contrib-skoda-connect">GitHub</a> - the nodes github repository</li>
+        </ul>
+</script>

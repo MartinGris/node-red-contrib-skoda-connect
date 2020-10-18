@@ -1,0 +1,31 @@
+{
+    "name" : "node-red-contrib-skoda-connect",
+	"version": "1.0.0",
+	 "description": "Simple Node-RED node for interacting with Skoda connect",
+	 "author": "Martin Grisard <martin@grisard.net>",
+	 "license": "BSD-3-Clause",
+	 "repository": {
+		"type": "git",
+		"url": "git+https://github.com/MartinGris/node-red-contrib-skoda-connect.git"
+	},
+	"homepage": "",
+	  "main": "skoda-connect.js",
+	  "keywords": [
+		"node-red",
+		"skoda",
+		"connect"
+	  ],
+    "node-red" : {
+        "nodes": {
+            "skoda-connect": "skoda-connect.js"
+        }
+    },
+	 "dependencies": {
+		"request": "^2.88.0",
+		"request-promise": "^4.2.5",
+		 "@peculiar/webcrypto": "^1.0.22",
+		"jsdom": "^15.2.1",
+		"traverse": "^0.6.6",
+		"uuid": "^3.3.3"
+	}
+}
