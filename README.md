@@ -9,7 +9,7 @@ simple node for getting car information from skoda connect platform
 
 ## Usage
 
-Just configuration if credentials is needed. any input triggers the api call. Ouput is a json object with information of each car
+You need a Skoda connect account. In the node enter mail and password. any input triggers the api call. Ouput is a json object with information of each car
 
 ## Status fields Explanation
 
