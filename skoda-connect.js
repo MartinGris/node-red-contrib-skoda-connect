@@ -25,7 +25,8 @@ config = new Object();
 
 etags = {};
 
-loggedIn = false;
+relogin = false;
+personalData = {};
 currentEmail = "";
 currentPassword = "";
 vehiclePropertyMapping = {
@@ -112,62 +113,52 @@ module.exports = function (RED) {
         var node = this;
 
         node.status({ fill: "grey", shape: "dot", text: "not logged in" });
-        node.on('input', function (msg, send, done) {
-
-            if (node.requestActive) {
-                node.status({ fill: "yellow", shape: "dot", text: "requesting..." });
-                return;
-            }
-
-            node.requestActive = true;
+        node.on('input', async function (msg, send, done) {
 
             var skodaResultObject = new Object();
-            node.status({ fill: "yellow", shape: "ring", text: "logging in" });
-
-            if(this.credentials.email != currentEmail || this.credentials.password != currentPassword){
-                loggedIn = false;
-            }
-
            
-            login(this.credentials.email, this.credentials.password, node)
-            .then(() => {
-                currentEmail = this.credentials.email;
-                currentPassword = this.credentials.password;
-                loggedIn = true;
-                node.status({ fill: "green", shape: "dot", text: "requesting data ..." });
-
-                getPersonalData(node).then(function (value) {
-                    skodaResultObject.personalData = value;
-
-                    getVehicles(node).then(function (value) {
-                        vins = [];
-                        vins = value;
-
-                        getAllCarsData(vins).then(function (carsData) {
-                            skodaResultObject.vehicles = carsData;
-                            node.status({});
-                            node.requestActive = false;
-                            msg = { payload: skodaResultObject };
-                            node.send(msg);
-                        }).catch(error =>{
-                            node.requestActive = false;
-                            node.status({ fill: "red", shape: "dot", text: "error" })
-                        });
-
-                    }).catch(error =>{
-                        node.requestActive = false;
-                        node.status({ fill: "red", shape: "dot", text: "error" })
+            if(this.credentials.email != currentEmail || this.credentials.password != currentPassword || relogin){
+                node.status({ fill: "yellow", shape: "ring", text: "logging in" });
+                relogin = false;
+                personalData = {};
+                await login(this.credentials.email, this.credentials.password, node).then(async () => {
+                    currentEmail = this.credentials.email;
+                    currentPassword = this.credentials.password;
+                    
+                    await getPersonalData(node).then(function (value) {
+                       personalData = value;
+                    }).catch(([error,body]) => {
+                        errorHandling(error, node, body);
                     });
 
-                }).catch(error =>{
+                }).catch(([error,body]) =>{
+                    errorHandling(error, node, body);
+                });
+           
+
+            }
+
+            skodaResultObject.personalData = personalData;
+            node.status({ fill: "green", shape: "dot", text: "requesting data ..." });
+               
+            getVehicles(node).then(function (value) {
+                vins = [];
+                vins = value;
+
+                getAllCarsData(vins, node).then(function (carsData) {
+                    skodaResultObject.vehicles = carsData;
+                    node.status({});
                     node.requestActive = false;
-                    node.status({ fill: "red", shape: "dot", text: "error" })
+                    msg = { payload: skodaResultObject };
+                    node.send(msg);
+                }).catch(([error,body]) =>{
+                    errorHandling(error, node, body);
                 });
 
-            }).catch(error =>{
-                node.requestActive = false;
-                node.status({ fill: "red", shape: "dot", text: "error" })
+            }).catch(([error,body]) =>{
+                errorHandling(error, node, body);
             });
+         
            
             
         });
@@ -180,14 +171,41 @@ module.exports = function (RED) {
     });
 }
 
+async function errorHandling(error, node, body){    
+    node.status({ fill: "red", shape: "dot", text: "error" })
+    error &&  node.error(error) && console.log(error);
+
+    if(body && IsJsonString(body)){
+        body = JSON.parse(body);
+    }
+   
+    if(body && body.error && body.error.description.indexOf("expired") !== -1) {
+        node.error("Token is expired. try to get refresh token");
+        console.log("Token is expired. try to get refresh token");
+        node.error(body.error_description);
+        console.log(body.error_description);
+        
+        refreshToken(node).catch(() => {
+            node.error("Refresh Token was not successful");
+            relogin = true;
+        });
+    }
+   
+}
+function IsJsonString(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
+
 function login(email, pass, node) {
     return new Promise((resolve, reject) => {
 
-        if (loggedIn) {
-            refreshToken(node);
-            resolve();
-            return;
-        }
+
+        jar = request.jar();
         const nonce = getNonce();
         const state = uuidv4();
         const [code_verifier, codeChallenge] = getCodeChallenge();
@@ -207,7 +225,7 @@ function login(email, pass, node) {
             nonce +
             "&state=" +
             state;
-        request(
+        let getRequest = request(
             {
                 method: method,
                 url: url,
@@ -230,8 +248,9 @@ function login(email, pass, node) {
                     resp && node.error(resp.statusCode);
                     body && node.error(JSON.stringify(body));
                     console.log(err);
-                    reject();
-                    return;
+                    getTokens(getRequest, code_verifier, reject, resolve, node);
+                    // reject();
+                    // return;
                 }
 
                 try {
@@ -271,10 +290,9 @@ function login(email, pass, node) {
                         (err, resp, body) => {
                             if (err || (resp && resp.statusCode >= 400)) {
                                 node.error("Failed to get login identifier");
-                                err && node.error(err);
                                 resp && node.error(resp.statusCode);
                                 body && node.error(JSON.stringify(body));
-                                console.log(err);
+                                reject([err, body]);
                                 return;
                             }
                             try {
@@ -291,9 +309,8 @@ function login(email, pass, node) {
                                     form["password"] = pass;
                                 } else {
                                     node.error("No Login Form found. Please check your E-Mail in the app.");
-                                   
-                                    console.log(err);
-                                    node.status({ fill: "red", shape: "dot", text: "error" })
+                    
+                                    reject();
                                     return;
                                 }
                                 request.post(
@@ -314,10 +331,9 @@ function login(email, pass, node) {
                                     (err, resp, body) => {
                                         if (err || (resp && resp.statusCode >= 400)) {
                                             node.error("Failed to get login authenticate");
-                                            node.error(err);
                                             resp && node.error(resp.statusCode);
                                             body && node.error(JSON.stringify(body));
-                                            console.log(err);
+                                            reject([err, body]);
                                             return;
                                         }
 
@@ -388,24 +404,18 @@ function login(email, pass, node) {
                                             );
                                         } catch (error) {
                                             node.error("Login was not successful, please check your login credentials and selected type");
-                                            node.error(error);
                                             error.stack && node.error(error.stack);
-                                            node.status({ fill: "red", shape: "dot", text: "error" })
-                                            console.log(error);
+                                            reject([error, null]);
                                         }
                                     }
                                 );
                             } catch (error) {
-                                node.error(error);
-                                node.status({ fill: "red", shape: "dot", text: "error" })
-                                console.log(error);
+                                reject([error, null]);
                             }
                         }
                     );
                 } catch (error) {
-                    node.error(error);
-                    node.status({ fill: "red", shape: "dot", text: "error" })
-                    console.log(error);
+                   reject([error, null]);
                 }
             }
         );
@@ -422,51 +432,81 @@ function getAllCarsData(vins, node) {
             vin = vins[i];
             currentCar = new Object();
             currentCar.vin = vin;
+            
+            await getHomeRegion(vin, node).then(async function () {
+                await getVehicleData(vin, node).then(async function (value) {
+                    vehicleDataValue = value;
+                    currentCar.vehicleData = vehicleDataValue;
 
-            await getHomeRegion(vin, node);
-            vehicleDataValue = await getVehicleData(vin, node);
-            currentCar.vehicleData = vehicleDataValue;
-            statusObject = await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/vsr/v1/$type/$country/vehicles/$vin/status");
+                    await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/vsr/v1/$type/$country/vehicles/$vin/status").then(function (value) {
+                        statusObject = value;
 
-            dataFields = [];
-            statusObject.StoredVehicleDataResponse.vehicleData.data.forEach(dataElement => {
+                        dataFields = [];
+                        statusObject.StoredVehicleDataResponse.vehicleData.data.forEach(dataElement => {
+            
+                            dataElement["field"].forEach(dataField => {
+                                dataFields.push(dataField);
+                            });
+            
+                            dataFields.push(dataElement)
+                        });
+            
+                        vehicleProperties = {};
+                        Object.keys(vehiclePropertyMapping).forEach(stateId => {
+                            var stateName = vehiclePropertyMapping[stateId]["statusName"];
+            
+                            var result = dataFields.filter(obj => {
+                                return obj.id === stateId
+                            })
+                            if ((typeof (result[0]) !== 'undefined') && (result[0] !== null)) {
+            
+                                vehicleProperties[stateName] = new Object();
+                                vehicleProperties[stateName].value = result[0].value;
+                                vehicleProperties[stateName].unit = result[0].unit;
+                            }
 
-                dataElement["field"].forEach(dataField => {
-                    dataFields.push(dataField);
+            
+                        });
+            
+                        currentCar.vehicleStatus = vehicleProperties;
+            
+            
+            
+                        vehicles.push(currentCar);
+
+                    }).then(async function (value) {
+
+                        
+                        await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/cf/v1/$type/$country/vehicles/$vin/position").then(function (value) {
+
+                            positionObject = value;
+                            if (positionObject && positionObject.findCarResponse) {
+                                currentCar.parking = positionObject.findCarResponse;
+                            }
+
+                        }).catch(([error,body]) =>{
+
+                            reject([error, body]);
+                            return;
+                        });;
+                        
+                    }).catch(([error,body]) =>{
+
+                        reject([error, body]);
+                        return;
+                    });
+
+                }).catch(([error,body]) =>{
+                    reject([error, body]);
+                    return;
                 });
+                
 
-                dataFields.push(dataElement)
+            }).catch(([error,body]) =>{
+                reject([error, body]);
+                return;
             });
-
-            vehicleProperties = {};
-            Object.keys(vehiclePropertyMapping).forEach(stateId => {
-                var stateName = vehiclePropertyMapping[stateId]["statusName"];
-
-                var result = dataFields.filter(obj => {
-                    return obj.id === stateId
-                })
-                if ((typeof (result[0]) !== 'undefined') && (result[0] !== null)) {
-
-                    vehicleProperties[stateName] = new Object();
-                    vehicleProperties[stateName].value = result[0].value;
-                    vehicleProperties[stateName].unit = result[0].unit;
-                }
-
-
-            });
-
-            currentCar.vehicleStatus = vehicleProperties;
-
-            positionObject = await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/cf/v1/$type/$country/vehicles/$vin/position");
-            if (positionObject && positionObject.findCarResponse) {
-
-                currentCar.parking = new Object();
-                currentCar.parking.position = positionObject.findCarResponse;
-            }
-
-
-            vehicles.push(currentCar);
-
+            
         }
         resolve(vehicles);
     });
@@ -543,12 +583,10 @@ function getTokens(getRequest, code_verifier, reject, resolve, node) {
         (err, resp, body) => {
             if (err || (resp && resp.statusCode >= 400)) {
                 node.error("Failed to get token");
-                node.error(err);
+               
                 resp && node.error(resp.statusCode);
                 body &&  node.error(JSON.stringify(body));
-                console.log(err);
-                node.status({ fill: "red", shape: "dot", text: "error" })
-                return;
+                reject([err, body]);
             }
             try {
                 const tokens = JSON.parse(body);
@@ -571,9 +609,6 @@ function getNonce() {
 function getVWToken(tokens, jwtid_token, reject, resolve, node) {
     config.atoken = tokens.access_token;
     config.rtoken = tokens.refresh_token;
-    // refreshTokenInterval = setInterval(() => {
-    //     refreshToken().catch(() => { });
-    // }, 0.9 * 60 * 60 * 1000); // 0.9hours
 
     request.post(
         {
@@ -595,36 +630,26 @@ function getVWToken(tokens, jwtid_token, reject, resolve, node) {
         },
         (err, resp, body) => {
             if (err || (resp && resp.statusCode >= 400)) {
-                err && node.error(err);
                 resp && node.error(resp.statusCode);
-                console.log(err);
-                node.status({ fill: "red", shape: "dot", text: "error" })
-                return;
+                reject([err, body]);
             }
             try {
                 const tokens = JSON.parse(body);
-                config.skodaToken = tokens.access_token;
-                config.vwrtoken = tokens.refresh_token;
-                // vwrefreshTokenInterval = setInterval(() => {
-                //     refreshToken(node).catch(() => { });
-                // }, 0.9 * 60 * 60 * 1000); //0.9hours
+                config.skodaAccessToken = tokens.access_token;
+                config.skodaRefreshToken = tokens.refresh_token;
                 resolve();
             } catch (error) {
-                node.error(error);
-                node.status({ fill: "red", shape: "dot", text: "error" })
-                console.log(error);
+                reject([error, null]);
             }
         }
     );
 }
 function refreshToken(node) {
-    let url = "https://tokenrefreshservice.apps.emea.vwapps.io/refreshTokens";
-    let rtoken = config.rtoken;
-    let body = "refresh_token=" + rtoken;
+
     let form = "";
 
-    url = "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth/mobile/oauth2/v1/token";
-    rtoken = config.vwrtoken;
+    let url = "https://mbboauth-1d.prd.ece.vwg-connect.com/mbbcoauth/mobile/oauth2/v1/token";
+    let rtoken = config.skodaRefreshToken;
     body = "grant_type=refresh_token&scope=sc2%3Afal&token=" + rtoken;
 
     return new Promise((resolve, reject) => {
@@ -648,9 +673,11 @@ function refreshToken(node) {
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
                     node.error("Failing to refresh token.");
-                    node.error(err);
+                    console.log("Failing to refresh token.");
+
                     resp &&  node.error(resp.statusCode);
-                    console.log(err);
+                    body && node.error(JSON.stringify(body));
+                    reject([err, body]);
                     return;
                 }
                 try {
@@ -658,29 +685,23 @@ function refreshToken(node) {
                     const tokens = JSON.parse(body);
                     if (tokens.error) {
                         node.error(JSON.stringify(body));
-                        // refreshTokenTimeout = setTimeout(() => {
-                        //     refreshToken(node).catch(() => {
-                        //         node.error("refresh token failed");
-                        //     });
-                        // }, 5 * 60 * 1000);
-                        console.log(tokens.error);
+                        reject(tokens.error);
                         return;
                     }
 
-                    config.skodaToken = tokens.access_token;
+                    config.skodaAccessToken = tokens.access_token;
                     if (tokens.refresh_token) {
-                        config.vwrtoken = tokens.refresh_token;
+                        config.skodaRefreshToken = tokens.refresh_token;
                     }
 
                     resolve();
                 } catch (error) {
                     node.error("Failing to parse refresh token. The instance will do restart and try a relogin.");
-                    node.error(error);
                     body && node.error(JSON.stringify(body));
                     resp && node.error(resp.statusCode);
-                    error.stack && node.error(error.stack);
-                    loggedIn = false;
-                    reject();
+                    error.stack && node.error(error.stack);         
+                     
+                    reject([error, null]);
                 }
             }
         );
@@ -689,6 +710,11 @@ function refreshToken(node) {
 
 function getPersonalData(node) {
     return new Promise((resolve, reject) => {
+
+        if(Object.keys(personalData).length > 0 ){
+            resolve(personalData);
+            return;
+        }
 
         console.log("getPersonalData");
         request.get(
@@ -706,24 +732,22 @@ function getPersonalData(node) {
             },
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
-                    node.error(err);
                     resp &&  node.error(resp.statusCode);
-                    console.log(err);
+                    body && node.error(JSON.stringify(body));
+                    reject([err, body]);
                     return;
                 }
                 try {
                     if (body.error) {
                         node.error(JSON.stringify(body.error));
                         console.log(body.error);
-                        node.status({ fill: "red", shape: "dot", text: "error" })
+                        reject(body.error);
                     }
                     // console.log(body);
-                    var data = JSON.parse(body);
-                    resolve(data);
+                    personalData = JSON.parse(body);
+                    resolve(personalData);
                 } catch (error) {
-                    node.error(error);
-                    node.status({ fill: "red", shape: "dot", text: "error" })
-                    console.log(error);
+                   reject([error, null]);
                 }
             }
         );
@@ -732,12 +756,14 @@ function getPersonalData(node) {
 
 function getVehicles(node) {
     return new Promise((resolve, reject) => {
+        console.log("getVehicles");
+
         let url = replaceVarInUrl("https://msg.volkswagen.de/fs-car/usermanagement/users/v1/$type/$country/vehicles");
         let headers = {
             "User-Agent": "okhttp/3.7.0",
             "X-App-Version": xappversion,
             "X-App-Name": xappname,
-            "Authorization": "Bearer " + config.skodaToken,
+            "Authorization": "Bearer " + config.skodaAccessToken,
             "Accept": "application/json",
         };
         request.get(
@@ -750,15 +776,17 @@ function getVehicles(node) {
             },
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
-                    node.error(err);
                     resp && node.error(resp.statusCode);
-                    console.log(err);
+                    body && node.error(JSON.stringify(body));
+                    reject([err, body]);
+                    return;
                 }
                 try {
                     if (body.errorCode) {
+                        node.error("getVehicles failed");
+                        console.log("getVehicles failed");
                         node.error(JSON.stringify(body));
-                        console.log(body.errorCode);
-                        return;
+                        reject(body.errorCode);
                     }
                     // console.log(JSON.stringify(body));
 
@@ -769,12 +797,8 @@ function getVehicles(node) {
                     });
                     resolve(vinArray);
                 } catch (error) {
-                    node.error(error);
-                    node.error(error.stack);
                     node.error("Not able to find vehicle, did you choose the correct type?.");
-                    node.status({ fill: "red", shape: "dot", text: "error" })
-                    console.log(error);
-                    reject();
+                    reject([error, null]);
                 }
             }
         );
@@ -792,7 +816,7 @@ function getHomeRegion(vin, node) {
                     "user-agent": "okhttp/3.7.0",
                     "X-App-version": xappversion,
                     "X-App-name": xappname,
-                    "authorization": "Bearer " + config.skodaToken,
+                    "authorization": "Bearer " + config.skodaAccessToken,
                     "accept": "application/json",
                 },
                 followAllRedirects: true,
@@ -801,30 +825,28 @@ function getHomeRegion(vin, node) {
             },
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
-                    node.error(err);
-                    resp &&  node.error(resp.statusCode);
-                    console.log(err);
-                    resolve();
-                    return;
+                    resp && node.error(resp.statusCode);
+                    node.error("getHomeRegion failed");
+                    body && node.error(JSON.stringify(body));
+                    reject([err, body]);  
+                    return;            
                 }
                 try {
                     if (body.error) {
                         node.error(JSON.stringify(body.error));
-                        console.log(body.error);
-                        node.status({ fill: "red", shape: "dot", text: "error" })
+                        reject(body.error);
+                        return;
                     }
                     // console.log(body);
                     if (body.homeRegion && body.homeRegion.baseUri && body.homeRegion.baseUri.content) {
                         if (body.homeRegion.baseUri.content !== "https://mal-1a.prd.ece.vwg-connect.com/api") {
                             homeRegion = body.homeRegion.baseUri.content.split("/api")[0].replace("mal-", "fal-");
-                            console.log("Set URL to: " + homeRegion);
+                            // console.log("Set URL to: " + homeRegion);
                         }
                     }
                     resolve();
                 } catch (error) {
-                    node.error(error);
-                    console.log(error);
-                    node.status({ fill: "red", shape: "dot", text: "error" })
+                    reject([error, null]);
                 }
             }
         );
@@ -834,13 +856,14 @@ function getHomeRegion(vin, node) {
 
 function getVehicleData(vin, node) {
     return new Promise((resolve, reject) => {
+        console.log("getVehicleData");
+
         let accept = "application/vnd.vwg.mbb.vehicleDataDetail_v2_1_0+json, application/vnd.vwg.mbb.genericError_v1_0_2+json";
-        // let url = replaceVarInUrl("$homeregion/fs-car/vehicleMgmt/vehicledata/v2/$type/$country/vehicles/$vin/", vin);
 
         let url = replaceVarInUrl("https://msg.volkswagen.de/fs-car/promoter/portfolio/v1/$type/$country/vehicle/$vin/carportdata", vin);
         accept = "application/json";
 
-        let atoken = config.skodaToken;
+        let atoken = config.skodaAccessToken;
 
         request.get(
             {
@@ -860,12 +883,11 @@ function getVehicleData(vin, node) {
             },
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
-                    node.error(err);
+                    node.error("getVehicleData failed");
+                    console.log("getVehicleData failed");
                     resp &&  node.error(resp.statusCode);
                     body && node.error(JSON.stringify(body));
-                    console.log(err);
-                    reject();
-                    return;
+                    reject([err, body]);
                 }
                 try {
                     // console.log(JSON.stringify(body));
@@ -873,9 +895,7 @@ function getVehicleData(vin, node) {
                     resolve(result);
 
                 } catch (error) {
-                    node.error(error);
-                    console.log(error);
-                    reject();
+                    reject([error,null]);
                 }
             }
         );
@@ -884,6 +904,9 @@ function getVehicleData(vin, node) {
 
 function getVehicleStatus(vin, node, url) {
     return new Promise((resolve, reject) => {
+
+        console.log("getVehicleStatus");
+
         url = replaceVarInUrl(url, vin);
         accept = "application/json"
         request.get(
@@ -893,7 +916,7 @@ function getVehicleStatus(vin, node, url) {
                     "User-Agent": "okhttp/3.7.0",
                     "X-App-Version": xappversion,
                     "X-App-Name": xappname,
-                    "Authorization": "Bearer " + config.skodaToken,
+                    "Authorization": "Bearer " + config.skodaAccessToken,
                     "Accept-charset": "UTF-8",
                     "Accept": accept,
                 },
@@ -903,14 +926,11 @@ function getVehicleStatus(vin, node, url) {
             },
             (err, resp, body) => {
                 if (err || (resp && resp.statusCode >= 400)) {
-                    
-                    err && node.error(err);
+    
                     resp &&  node.error(resp.statusCode);
                     body && node.error(JSON.stringify(body));
-                    err && console.log(err);
-                    reject();
-                    return;
-                    
+                    reject([err, body]);
+                    return;                   
                 }
                 try {
                     // console.log(JSON.stringify(body));
@@ -918,39 +938,19 @@ function getVehicleStatus(vin, node, url) {
                         etags[url] = resp.headers.etag;
                         if (resp.statusCode === 304) {
                             console.log("304 No values updated");
-                            reject();
+                            reject([resp.statusCode, null]);
                             return;
                         }
                     }
 
-
-                    if (body === undefined || body === "" || body.error) {
-                        if (body && body.error && body.error.description.indexOf("Token expired") !== -1) {
-                            node.error("Error response try to refresh token " + path);
-                            node.error(JSON.stringify(body));
-                            refreshToken(node).catch(() => {
-                                node.error("Refresh Token was not successful");
-                            });
-                        } else {
-                            console.log("Not able to get " + path);
-                        }
-                        console.log(body);
-                        console.log(body.error);
-                        reject();
-                        return;
-                    }
-
                     resolve(body);
 
-
                 } catch (error) {
-                    node.error(error);
-                    node.error(error.stack);
-                    console.log(error);
-                    loggedIn = false;
-                    reject();
+                    node.error("error while reading getVehicleStatus result");
+                    reject([error, null]);
                 }
             }
         );
     });
 }
+
