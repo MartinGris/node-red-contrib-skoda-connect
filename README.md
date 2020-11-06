@@ -1,6 +1,12 @@
 
 # node-red-contrib-skoda-connect
 
+[![NPM version](http://img.shields.io/npm/v/node-red-contrib-skoda-connect.svg)](https://www.npmjs.com/package/node-red-contrib-skoda-connect)
+[![Downloads](https://img.shields.io/npm/dm/node-red-contrib-skoda-connect.svg)](https://www.npmjs.com/package/node-red-contrib-skoda-connect)
+[![Dependency Status](https://img.shields.io/david/MartinGris/node-red-contrib-skoda-connect.svg)](https://david-dm.org/MartinGris/node-red-contrib-skoda-connect)
+[![Known Vulnerabilities](https://snyk.io/test/github/MartinGris/node-red-contrib-skoda-connect/badge.svg)](https://snyk.io/test/github/MartinGris/node-red-contrib-skoda-connect)
+
+[![NPM](https://nodei.co/npm/node-red-contrib-skoda-connect.png?compact=true)](https://nodei.co/npm/node-red-contrib-skoda-connect/)
 
 ## skoda-connect node for node-red
 
