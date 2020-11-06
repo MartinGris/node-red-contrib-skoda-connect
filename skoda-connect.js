@@ -5,6 +5,7 @@ const { Crypto } = require("@peculiar/webcrypto");
 const uuidv4 = require("uuid/v4");
 const traverse = require("traverse");
 const jsdom = require("jsdom");
+const { Console } = require('console');
 const { JSDOM } = jsdom;
 
 jar = request.jar();
@@ -180,13 +181,17 @@ async function errorHandling(error, node, body){
     }
    
     if(body && body.error && body.error.description.indexOf("expired") !== -1) {
-        node.error("Token is expired. try to get refresh token");
+        node.log("Token is expired. try to get refresh token");
         console.log("Token is expired. try to get refresh token");
-        node.error(body.error_description);
+        node.log(body.error_description);
         console.log(body.error_description);
         
-        refreshToken(node).catch(() => {
-            node.error("Refresh Token was not successful");
+        refreshToken(node).then(()=>{
+            node.log("Token refresh was successful");
+            console.log("Token refresh was successful");
+        })
+        .catch(() => {
+            node.error("Refresh Token was not successful. Try to relogin");
             relogin = true;
         });
     }
@@ -440,7 +445,7 @@ function getAllCarsData(vins, node) {
 
                     await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/vsr/v1/$type/$country/vehicles/$vin/status").then(function (value) {
                         statusObject = value;
-
+                        
                         dataFields = [];
                         statusObject.StoredVehicleDataResponse.vehicleData.data.forEach(dataElement => {
             
@@ -488,7 +493,55 @@ function getAllCarsData(vins, node) {
 
                             reject([error, body]);
                             return;
-                        });;
+                        });
+                        
+                    }).then(async function (value) {
+
+                        
+                        await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/climatisation/v1/$type/$country/vehicles/$vin/climater").then(function (value) {
+
+                            climaterObject = value;
+                            if (climaterObject && climaterObject.climater) {
+                                currentCar.climater = climaterObject.climater;
+                            }
+
+                        }).catch(([error,body]) =>{
+
+                            reject([error, body]);
+                            return;
+                        });
+                        
+                    }).then(async function (value) {
+
+                        
+                        await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/batterycharge/v1/$type/$country/vehicles/$vin/charger").then(function (value) {
+
+                            chargerObject = value;
+                            if (chargerObject && chargerObject.charger) {
+                                currentCar.charger = chargerObject.charger;
+                            }
+
+                        }).catch(([error,body]) =>{
+
+                            reject([error, body]);
+                            return;
+                        });
+                        
+                    }).then(async function (value) {
+
+                        
+                        await getVehicleStatus(vin, node, "$homeregion/fs-car/bs/departuretimer/v1/$type/$country/vehicles/$vin/timer").then(function (value) {
+
+                            timerObject = value;
+                            if (timerObject && timerObject.timer) {
+                                currentCar.timer = timerObject.timer;
+                            }
+
+                        }).catch(([error,body]) =>{
+
+                            reject([error, body]);
+                            return;
+                        });
                         
                     }).catch(([error,body]) =>{
 
@@ -933,7 +986,7 @@ function getVehicleStatus(vin, node, url) {
                     return;                   
                 }
                 try {
-                    // console.log(JSON.stringify(body));
+                 
                     if (resp) {
                         etags[url] = resp.headers.etag;
                         if (resp.statusCode === 304) {
@@ -942,7 +995,7 @@ function getVehicleStatus(vin, node, url) {
                             return;
                         }
                     }
-
+                    // console.log(JSON.stringify(body));
                     resolve(body);
 
                 } catch (error) {

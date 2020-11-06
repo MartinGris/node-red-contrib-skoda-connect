@@ -1,6 +1,6 @@
 {
     "name" : "node-red-contrib-skoda-connect",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	 "description": "Simple Node-RED node for interacting with Skoda connect",
 	 "author": "Martin Grisard <martin@grisard.net>",
 	 "license": "BSD-3-Clause",
