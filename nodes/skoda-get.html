@@ -1,5 +1,5 @@
 <script type="text/javascript">
-    RED.nodes.registerType('skoda-connect',{
+    RED.nodes.registerType('skoda-get',{
         category: 'car',
         color: '#4aa82e',
         defaults: {
@@ -9,7 +9,7 @@
         outputs:1,
         icon: "arrow-in.svg",
         label: function() {
-            return this.name||"skoda-connect";
+            return this.name||"skoda-get";
         },
         credentials: {
             email: { type: "text" },
@@ -18,7 +18,7 @@
     });
 </script>
 
-<script type="text/x-red" data-template-name="skoda-connect">
+<script type="text/x-red" data-template-name="skoda-get">
     <div class="form-row">
         <label for="node-input-name"><i class="icon-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -33,8 +33,8 @@
     </div>
 </script>
 
-<script type="text/x-red" data-help-name="skoda-connect">
-    <p>A node to log in to Skoda connect service</p>
+<script type="text/x-red" data-help-name="skoda-get">
+    <p>A node to log in to Skoda connect service and get cars data</p>
 
     <h3>Inputs</h3>
     <p>Input only used for triggering</p>

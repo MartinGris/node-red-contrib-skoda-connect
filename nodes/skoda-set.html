@@ -1,0 +1,101 @@
+<script type="text/javascript">
+    RED.nodes.registerType('skoda-set',{
+        category: 'car',
+        color: '#4aa82e',
+        defaults: {
+            name: {value:""},
+            command:{
+                value: "",
+                required: true
+            },
+        },
+        inputs:1,
+        outputs:1,
+        icon: "arrow-in.svg",
+        label: function() {
+            return this.name||"skoda-set";
+        },
+        credentials: {
+            email: { type: "text" },
+            password: { type: "password" }
+        },
+        oneditprepare: function() {
+
+            function updateDocumentation(value){
+                if(value == "temperature"){
+                    $('#dtHelpClimater').hide();
+                    $('#ddHelpClimater').hide();
+                    $('#dtHelpTemperature').show();
+                    $('#ddHelpTemperature').show();
+                }
+                else if(value == "climater"){
+                    $('#dtHelpClimater').show();
+                    $('#ddHelpClimater').show();
+                    $('#dtHelpTemperature').hide();
+                    $('#ddHelpTemperature').hide();
+                }
+            }
+
+            var node = this;
+            $('#dtHelpTemperature').ready(function() {
+                setTimeout(function(){
+                    updateDocumentation(node.command);
+                }, 500);
+               
+            });
+            $('#node-input-command').on('change', function(type, value) {
+                var val = $(this).val();
+                updateDocumentation(val);
+            });
+        },
+
+    });
+
+
+</script>
+
+<script type="text/x-red" data-template-name="skoda-set">
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-email"><i class="icon-tag"></i> Email</label>
+        <input type="text" id="node-input-email">
+    </div>
+    <div class="form-row">
+        <label for="node-input-password"><i class="icon-tag"></i> Password</label>
+        <input type="password" id="node-input-password">
+    </div>
+    <div class="form-row">
+        <label for="node-input-command"><i class="icon-tag"></i> Command</label>
+        <select id="node-input-command">
+            <option value="temperature">Set Climater Temperature</option>
+            <option value="climater">Switch Climater on/off</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="skoda-set">
+    <p>A node to log in to Skoda connect service and call various functions</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt id="dtHelpClimater" style="display: none;" class="required">msg.payload<span class="property-type">boolean</span></dt>
+        <dd id="ddHelpClimater" style="display: none;">true/false to switch the climater on or off</dd>
+        
+        <dt id="dtHelpTemperature" style="display: none;" class="required">msg.payload<span class="property-type">double</span></dt>
+        <dd id="ddHelpTemperature" style="display: none;">The target temperature for the climater</dd>
+
+        <dt class="required">msg.vin <span class="property-type">string</span></dt>
+        <dd>VIN number of car. Use the skoda-get node for querying it</dd>
+    </dl>
+    <h3>Output</h3>
+    <p>result body from skoda api</p>
+
+    <h3>References</h3>
+        <ul>
+            <li><a href="https://www.skoda-connect.com/">Skoda connect</a> </li>
+            <li><a href="https://github.com/MartinGris/node-red-contrib-skoda-connect">GitHub</a> - the nodes github repository</li>
+        </ul>
+</script>

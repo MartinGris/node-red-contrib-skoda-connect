@@ -9,12 +9,31 @@
 
 ## skoda-connect node for node-red
 
-simple node for getting car information from skoda connect platform
+simple nodes for getting car information from skoda connect platform and call functions you know from the skoda connect app
 
 
-## Usage
+## Usage skoda-get node
 
 You need a Skoda connect account. In the node enter mail and password. any input triggers the api call. Ouput is a json object with information of each car
+
+## Usage skoda-set node
+
+You need a Skoda connect account. In the node enter mail and password. Currently two functions can be selected in the dropdown. Each function needs a different payload
+For setting the target temperature of the climater pass the value as double in the payload field. For switching the climater on or off pass a boolean in the payload field. Both functions need a VIN number (string).
+```js
+	{
+	"payload": <TEMPERATURE>,
+	"vin": "<VIN>"
+	}
+```
+or
+
+```js
+	{
+	"payload": <true/false>,
+	"vin": "<VIN>"
+	}
+```
 
 ## Status fields Explanation
 
