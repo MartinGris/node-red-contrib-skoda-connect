@@ -14,7 +14,8 @@ simple nodes for getting car information from skoda connect platform and call fu
 
 ## Usage skoda-get node
 
-You need a Skoda connect account. In the node enter mail and password. any input triggers the api call. Ouput is a json object with information of each car
+You need a Skoda connect account. In the node enter mail and password. any input triggers the api call. Ouput is a json object with information of each car.
+There are some optional APIs which can be called depending on the configuration of your car. Select it only if available for your car.
 
 ## Usage skoda-set node
 
@@ -34,6 +35,21 @@ or
 	"vin": "<VIN>"
 	}
 ```
+
+The second output of the skoda-set node is used for the ActionState query. It can be configured to query the state of the currently sent action a couple of times in a defined period.
+
+## ActionState Explanation
+
+  -   queued
+  -   fetched
+  -   delayed
+  -   unfetched
+  -   cancelled
+  -   succeeded
+  -   failed
+  -   error
+  -   succeededDelayed
+  -   failedDelayed
 
 ## Status fields Explanation
 

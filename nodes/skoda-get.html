@@ -3,8 +3,25 @@
         category: 'car',
         color: '#4aa82e',
         defaults: {
-            name: {value:""}
+            name: {value:""},
+            queryParking:{
+                value: false,
+                required: false
+            },
+            queryClimater:{
+                value: false,
+                required: false
+            },
+            queryCharger:{
+                value: false,
+                required: false
+            },
+            queryTimer:{
+                value: false,
+                required: false
+            },
         },
+        
         inputs:1,
         outputs:1,
         icon: "arrow-in.svg",
@@ -31,11 +48,50 @@
         <label for="node-input-password"><i class="icon-tag"></i> Password</label>
         <input type="password" id="node-input-password">
     </div>
+    <div class="form-row">
+        <label for="node-input-queryParking"><i class="icon-tag"></i> Query parking information</label>
+        <input type="checkbox" id="node-input-queryParking">
+    </div>
+    <div class="form-row">
+        <label for="node-input-queryClimater"><i class="icon-tag"></i> Query climatisation information</label>
+        <input type="checkbox" id="node-input-queryClimater">
+    </div>
+    <div class="form-row">
+        <label for="node-input-queryCharger"><i class="icon-tag"></i> Query charger information</label>
+        <input type="checkbox" id="node-input-queryCharger">
+    </div>
+    <div class="form-row">
+        <label for="node-input-queryTimer"><i class="icon-tag"></i> Query timer information</label>
+        <input type="checkbox" id="node-input-queryTimer">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="skoda-get">
     <p>A node to log in to Skoda connect service and get cars data</p>
 
+    <h3>Configuration</h3>
+    <dl class="message-properties">
+        <dt class="optional">Name<span class="property-type">string</span></dt>
+        <dd>name of node</dd>
+
+        <dt class="required">Email<span class="property-type">string</span></dt>
+        <dd>Email of Skoda-Connect account</dd>
+
+        <dt class="required">Command<span class="property-type">object</span></dt>
+        <dd>Choose a command from the list</dd>
+
+        <dt class="optional">Query parking information<span class="property-type">boolean</span></dt>
+        <dd>query parking information only if available for your car!</dd>
+
+        <dt class="optional">Query climater information<span class="property-type">boolean</span></dt>
+        <dd>query climater information only if available for your car!</dd>
+
+        <dt class="optional">Query charger information<span class="property-type">boolean</span></dt>
+        <dd>query charging information only if available for your car!</dd>
+
+        <dt class="optional">Query timer information<span class="property-type">boolean</span></dt>
+        <dd>query timer information only if available for your car!</dd>
+    </dl>
     <h3>Inputs</h3>
     <p>Input only used for triggering</p>
 

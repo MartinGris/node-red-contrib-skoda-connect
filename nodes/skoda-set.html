@@ -8,9 +8,30 @@
                 value: "",
                 required: true
             },
+            queryActionResult:{
+                value: "",
+                required: true
+            },
+            queryCount:{
+                value: "",
+                required: false,
+                validate:function(queryCountEntered){
+                    var queryActionResultActive = $("#node-input-queryActionResult").prop("checked");
+                    return queryActionResultActive == false || queryCountEntered >= 1 && queryCountEntered <= 5;
+                }
+            },
+            refreshPeriod:{
+                value: "",
+                required: false,
+                validate:function(periodEntered){
+                    var queryActionResultActive = $("#node-input-queryActionResult").prop("checked");
+                    var min = $("#node-input-refreshPeriod").prop("min");
+                    return queryActionResultActive == false || periodEntered >= min;
+                }
+            },
         },
         inputs:1,
-        outputs:1,
+        outputs:2,
         icon: "arrow-in.svg",
         label: function() {
             return this.name||"skoda-set";
@@ -36,16 +57,34 @@
                 }
             }
 
+            function updateActionQueryOptions(show){
+                console.log("show: " + show);
+                if(show == true){
+                    $('#queryCountDiv').show();
+                    $('#periodDiv').show();
+                }
+                else{
+                    $('#queryCountDiv').hide();
+                    $('#periodDiv').hide();
+                }
+            }
+
             var node = this;
             $('#dtHelpTemperature').ready(function() {
                 setTimeout(function(){
                     updateDocumentation(node.command);
+                    updateActionQueryOptions(node.queryActionResult);
                 }, 500);
                
             });
             $('#node-input-command').on('change', function(type, value) {
                 var val = $(this).val();
                 updateDocumentation(val);
+            });
+
+            $('#node-input-queryActionResult').on('change', function(type, value) {
+                var val = $(this).prop("checked");
+                updateActionQueryOptions(val);
             });
         },
 
@@ -60,24 +99,63 @@
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-email"><i class="icon-tag"></i> Email</label>
+        <label for="node-input-email"><i class="icon-tag"></i>Email</label>
         <input type="text" id="node-input-email">
     </div>
     <div class="form-row">
-        <label for="node-input-password"><i class="icon-tag"></i> Password</label>
+        <label for="node-input-password"><i class="icon-tag"></i>Password</label>
         <input type="password" id="node-input-password">
     </div>
     <div class="form-row">
-        <label for="node-input-command"><i class="icon-tag"></i> Command</label>
+        <label for="node-input-command"><i class="icon-tag"></i>Command</label>
         <select id="node-input-command">
             <option value="temperature">Set Climater Temperature</option>
             <option value="climater">Switch Climater on/off</option>
         </select>
     </div>
+    <div class="form-row">
+        <label for="node-input-queryActionResult"><i class="icon-tag"></i> Query Action result</label>
+        <input type="checkbox" id="node-input-queryActionResult">
+    </div>
+    <div class="form-row" id="queryCountDiv">
+        <label for="node-input-queryCount"><i class="icon-tag"></i> Number of queries</label>
+        <select id="node-input-queryCount">
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+            <option>4</option>
+            <option>5</option>
+        </select>
+    </div>
+    <div class="form-row" id="periodDiv">
+        <label for="node-input-refreshPeriod"><i class="icon-tag"></i>Query period (ms)</label>
+        <input type="number" min="500" id="node-input-refreshPeriod">
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="skoda-set">
     <p>A node to log in to Skoda connect service and call various functions</p>
+
+    <h3>Configuration</h3>
+    <dl class="message-properties">
+        <dt class="optional">Name<span class="property-type">string</span></dt>
+        <dd>name of node</dd>
+
+        <dt class="required">Email<span class="property-type">string</span></dt>
+        <dd>Email of Skoda-Connect account</dd>
+
+        <dt class="required">Command<span class="property-type">object</span></dt>
+        <dd>Choose a command from the list</dd>
+
+        <dt class="required">Query Action result<span class="property-type">boolean</span></dt>
+        <dd>if checked the result of the command can be queried. The default state after the command is fired is 'queued'</dd>
+
+        <dt class="optional">Number of queries<span class="property-type">int</span></dt>
+        <dd>the number of queries after the command is fired.</dd>
+
+        <dt class="optional">Query period<span class="property-type">int</span></dt>
+        <dd>the triggerperiod used for querying the action state after the command is fired in milliseconds</dd>
+    </dl>
 
     <h3>Inputs</h3>
     <dl class="message-properties">
@@ -91,7 +169,13 @@
         <dd>VIN number of car. Use the skoda-get node for querying it</dd>
     </dl>
     <h3>Output</h3>
-    <p>result body from skoda api</p>
+    <dl class="message-properties">
+        <dt class="required">msg.payload<span class="property-type">object</span></dt>
+        <dd>Output 1.: action object</dd>
+
+        <dt class="required">msg.payload<span class="property-type">object</span></dt>
+        <dd>Output 2.: action object status update</dd>
+    </dl>
 
     <h3>References</h3>
         <ul>
