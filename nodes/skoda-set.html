@@ -25,7 +25,7 @@
                 required: false,
                 validate:function(periodEntered){
                     var queryActionResultActive = $("#node-input-queryActionResult").prop("checked");
-                    var min = $("#node-input-refreshPeriod").prop("min");
+                    var min = 500;
                     return queryActionResultActive == false || periodEntered >= min;
                 }
             },
