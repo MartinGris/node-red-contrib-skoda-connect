@@ -4,6 +4,10 @@
         color: '#4aa82e',
         defaults: {
             name: {value:""},
+            apiType:{
+                value: "skodaDefault",
+                required: true
+            },
             queryParking:{
                 value: false,
                 required: false
@@ -31,8 +35,25 @@
         credentials: {
             email: { type: "text" },
             password: { type: "password" }
+        },
+        oneditprepare: function(){
+            if($('#node-input-apiType').val() == 'enyaq'){ //'.val()'
+                $('.skodaOptions').hide();
+            }
+
+            $('#node-input-apiType').change(function(){
+                if($(this).val() == 'enyaq'){ 
+                    $('.skodaOptions').hide();
+                    return true;
+                }
+                $('.skodaOptions').show();
+            });
         }
     });
+   
+        
+    
+    
 </script>
 
 <script type="text/x-red" data-template-name="skoda-get">
@@ -49,18 +70,26 @@
         <input type="password" id="node-input-password">
     </div>
     <div class="form-row">
+        <label for="node-input-apiType"><i class="icon-tag"></i> Car</label>
+        <select id="node-input-apiType">
+            <option value="skodaDefault">Default</option>
+            <option value="enyaq">Enyaq</option>
+          </select>
+    </div>
+
+    <div class="form-row skodaOptions">
         <label for="node-input-queryParking"><i class="icon-tag"></i> Query parking information</label>
         <input type="checkbox" id="node-input-queryParking">
     </div>
-    <div class="form-row">
+    <div class="form-row skodaOptions">
         <label for="node-input-queryClimater"><i class="icon-tag"></i> Query climatisation information</label>
         <input type="checkbox" id="node-input-queryClimater">
     </div>
-    <div class="form-row">
+    <div class="form-row skodaOptions">
         <label for="node-input-queryCharger"><i class="icon-tag"></i> Query charger information</label>
         <input type="checkbox" id="node-input-queryCharger">
     </div>
-    <div class="form-row">
+    <div class="form-row skodaOptions">
         <label for="node-input-queryTimer"><i class="icon-tag"></i> Query timer information</label>
         <input type="checkbox" id="node-input-queryTimer">
     </div>
@@ -76,6 +105,9 @@
 
         <dt class="required">Email<span class="property-type">string</span></dt>
         <dd>Email of Skoda-Connect account</dd>
+
+        <dt class="required">Car<span class="property-type">string</span></dt>
+        <dd>All Skoda Cars work with the default settings. Only Enyaq uses a special API</dd>
 
         <dt class="required">Command<span class="property-type">object</span></dt>
         <dd>Choose a command from the list</dd>
