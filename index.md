@@ -1,37 +1,71 @@
-## Welcome to GitHub Pages
 
-You can use the [editor on GitHub](https://github.com/MartinGris/node-red-contrib-skoda-connect/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+# node-red-contrib-skoda-connect
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+[![NPM version](http://img.shields.io/npm/v/node-red-contrib-skoda-connect.svg)](https://www.npmjs.com/package/node-red-contrib-skoda-connect)
+[![Downloads](https://img.shields.io/npm/dm/node-red-contrib-skoda-connect.svg)](https://www.npmjs.com/package/node-red-contrib-skoda-connect)
+[![Dependency Status](https://img.shields.io/david/MartinGris/node-red-contrib-skoda-connect.svg)](https://david-dm.org/MartinGris/node-red-contrib-skoda-connect)
 
-### Markdown
+[![NPM](https://nodei.co/npm/node-red-contrib-skoda-connect.png?compact=true)](https://nodei.co/npm/node-red-contrib-skoda-connect/)
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+## skoda-connect node for node-red
 
-```markdown
-Syntax highlighted code block
+simple nodes for getting car information from skoda connect platform and call functions you know from the skoda connect app
 
-# Header 1
-## Header 2
-### Header 3
 
-- Bulleted
-- List
+## Usage skoda-get node
 
-1. Numbered
-2. List
+You need a Skoda connect account. In the node enter mail and password. any input triggers the api call. Ouput is a json object with information of each car.
+There are some optional APIs which can be called depending on the configuration of your car. Select it only if available for your car.
 
-**Bold** and _Italic_ and `Code` text
+## Usage skoda-set node
 
-[Link](url) and ![Image](src)
+You need a Skoda connect account. In the node enter mail and password. Currently two functions can be selected in the dropdown. Each function needs a different payload.
+For setting the target temperature of the climater pass the value as double in the payload field. For switching the climater on or off pass a boolean in the payload field. Both functions need a VIN number (string).
+```js
+	{
+	"payload": <TEMPERATURE>,
+	"vin": "<VIN>"
+	}
+```
+or
+
+```js
+	{
+	"payload": <true/false>,
+	"vin": "<VIN>"
+	}
 ```
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+The second output of the skoda-set node is used for the ActionState query. It can be configured to query the state of the currently sent action a couple of times in a defined period.
 
-### Jekyll Themes
+## ActionState Explanation
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/MartinGris/node-red-contrib-skoda-connect/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+  -   queued
+  -   fetched
+  -   delayed
+  -   unfetched
+  -   cancelled
+  -   succeeded
+  -   failed
+  -   error
+  -   succeededDelayed
+  -   failedDelayed
 
-### Support or Contact
+## Status fields Explanation
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+Door and window states:
+
+-   open: 1
+-   locked: 2
+-   closed: 3
+
+## Credits
+Thanks to [TA2k](https://github.com/TA2k) for [ioBroker.vw-connect](https://github.com/TA2k/ioBroker.vw-connect) and [DBa2016](https://github.com/DBa2016) for [sc2mqtt](https://github.com/DBa2016/sc2mqtt).
+My code based heavily on there scripts
+
+## Buy me a beer
+Find it useful? Please consider buying me or other contributors a beer.
+
+<a href="https://www.buymeacoffee.com/MartinGrisard" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Beer" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+
+
